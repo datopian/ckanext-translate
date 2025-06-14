@@ -1,16 +1,18 @@
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
+import logging
 
 from ckanext.translate.logic import (
     action, auth
 )
+
+log = logging.getLogger(__name__)
 
 
 class TranslatePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
-    
 
     # IConfigurer
     def update_config(self, config_):
@@ -21,12 +23,15 @@ class TranslatePlugin(plugins.SingletonPlugin):
     # IConfigurer
     def update_config_schema(self, schema):
         not_empty = toolkit.get_validator("not_empty")
+        ignore_missing = toolkit.get_validator("ignore_missing")
         schema.update({
-            'ckanext.translate.ibm_url': [not_empty, str],
-            'ckanext.translate.ibm_key': [not_empty, str],
+            'ckanext.translate.google_service_account_file': [not_empty, str],
+            'ckanext.translate.google_project_id': [not_empty, str],
+            'ckanext.translate.google_location': [not_empty, str],
+            'ckanext.translate.google_ignore_list_path': [ignore_missing, str],
         })
         return schema
-    
+
     # IAuthFunctions
     def get_auth_functions(self):
         return auth.get_auth_functions()

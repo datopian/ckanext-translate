@@ -5,6 +5,7 @@ import json
 import re
 import hashlib
 import io
+import html
 
 import ckan.plugins.toolkit as tk
 import ckanext.translate.logic.schema as schema
@@ -111,7 +112,7 @@ def translate(context, data_dict):
                 lambda _: original_text, translated_item.translated_text
             )
         translated_dict.update(
-            {list(translate_keys)[index]: translated_item.translated_text}
+            {list(translate_keys)[index]: html.unescape(translated_item.translated_text)}
         )
 
     return {"output": translated_dict}
