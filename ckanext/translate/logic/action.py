@@ -52,23 +52,42 @@ def _ignore_terms(translate_values):
         with io.open(ignore_list_path, "r", encoding="utf-8") as terms_file:
             terms = terms_file.read().splitlines()
 
+    url_pattern = re.compile(r"https?://[a-zA-Z0-9\.\-\/\?\=\&\%\#\_]+")
     hash_to_original = {}
     translate_values = list(translate_values)
 
     for index, translate_value in enumerate(translate_values):
+        # This was initially implemented as an attempt to fix the
+        # `-` character being replaced with `-\n` in translated URLs.
+        # It turns out, it's not required to solve that, but I'm
+        # leaving it because it will prevent Google from accidentally
+        # altering URLs. Even though the odds of that happening are low,
+        # it's better to be safe than sorry).
+        def _shield_url(url_match):
+            original_url = url_match.group()
+            url_hash = hashlib.sha256(original_url.encode("utf-8")).hexdigest()[:32]
+
+            hash_to_original[url_hash] = original_url
+
+            return url_hash
+
+        translate_value = url_pattern.sub(_shield_url, translate_value)
+
         for term in terms:
             pattern = re.compile(re.escape(term), re.IGNORECASE | re.UNICODE)
 
-            def replace_with_hash(match):
+            def _replace_with_hash(match):
                 original_text = match.group()
-                hash_value = hashlib.sha256(original_text.encode("utf-8")).hexdigest()
+                hash_value = hashlib.sha256(original_text.encode("utf-8")).hexdigest()[
+                    :32
+                ]
 
                 if hash_value not in hash_to_original:
                     hash_to_original[hash_value] = original_text
 
                 return hash_value
 
-            translate_value = pattern.sub(replace_with_hash, translate_value)
+            translate_value = pattern.sub(_replace_with_hash, translate_value)
 
         translate_values[index] = translate_value
 
@@ -108,11 +127,27 @@ def translate(context, data_dict):
     for index, translated_item in enumerate(response.translations):
         for hash_value, original_text in list(hash_to_original.items()):
             pattern = re.compile(re.escape(hash_value))
+            # After text leaves this extension, a `\n` is inserted
+            # after the `-` in some cases. This happens before it
+            # gets to ckanext-scheming or ckanext-fluent, so it's
+            # likely some sort of validation/sanitization step in
+            # CKAN core. Replacing `-` with `%2d` prevents this
+            # from happening, and it's functionally equivalent in
+            # URLs, so it shouldn't cause any issues.
+            original_text = (
+                original_text.replace("-", "%2d")
+                if original_text.startswith("http")
+                else original_text
+            )
             translated_item.translated_text = pattern.sub(
                 lambda _: original_text, translated_item.translated_text
             )
         translated_dict.update(
-            {list(translate_keys)[index]: html.unescape(translated_item.translated_text)}
+            {
+                list(translate_keys)[index]: html.unescape(
+                    translated_item.translated_text
+                )
+            }
         )
 
     return {"output": translated_dict}
@@ -122,4 +157,3 @@ def get_actions():
     return {
         "translate": translate,
     }
-

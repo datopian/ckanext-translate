@@ -2,15 +2,15 @@ import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 import logging
 
-from ckanext.translate.logic import (
-    action, auth
-)
+from ckan.config.declaration import Declaration, Key
+from ckanext.translate.logic import action, auth
 
 log = logging.getLogger(__name__)
 
 
 class TranslatePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
+    plugins.implements(plugins.IConfigDeclaration)
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
 
@@ -20,17 +20,21 @@ class TranslatePlugin(plugins.SingletonPlugin):
         toolkit.add_public_directory(config_, "public")
         toolkit.add_resource("assets", "translate")
 
-    # IConfigurer
-    def update_config_schema(self, schema):
-        not_empty = toolkit.get_validator("not_empty")
-        ignore_missing = toolkit.get_validator("ignore_missing")
-        schema.update({
-            'ckanext.translate.google_service_account_file': [not_empty, str],
-            'ckanext.translate.google_project_id': [not_empty, str],
-            'ckanext.translate.google_location': [not_empty, str],
-            'ckanext.translate.google_ignore_list_path': [ignore_missing, str],
-        })
-        return schema
+    # IConfigDeclaration
+    def declare_config_options(self, declaration: Declaration, key: Key):
+        declaration.annotate("ckanext-translate settings")
+        declaration.declare(key.ckanext.translate.google_service_account_file).set_validators(
+            "not_empty unicode_safe"
+        )
+        declaration.declare(key.ckanext.translate.google_project_id).set_validators(
+            "not_empty unicode_safe"
+        )
+        declaration.declare(key.ckanext.translate.google_location).set_validators(
+            "not_empty unicode_safe"
+        )
+        declaration.declare(key.ckanext.translate.ignore_list_path).set_validators(
+            "ignore_missing unicode_safe"
+        )
 
     # IAuthFunctions
     def get_auth_functions(self):
