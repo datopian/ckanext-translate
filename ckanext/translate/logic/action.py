@@ -98,7 +98,8 @@ def translate(context, data_dict):
     translate_vars = _get_variables()
     client = _get_client(translate_vars["service_account_file"])
     project_id = translate_vars["project_id"]
-    parent = client.location_path(project_id, translate_vars["location"])
+    # google-cloud-translate 3.x removed location_path (needed for Python 3.14 / CKAN 2.12)
+    parent = client.common_location_path(project_id, translate_vars["location"])
 
     tk.check_access("translate", context, data_dict)
 
